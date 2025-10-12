@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import './DocsApp.css';
 
 type DocSummary = {
-    id: string;
+    slug: string;
     title: string;
     createdAt: string;
     updatedAt: string;
@@ -14,9 +14,19 @@ type Doc = DocSummary & { content: string };
 type FormState = {
     title: string;
     content: string;
+    slug: string;
 };
 
-const EMPTY_FORM: FormState = { title: '', content: '' };
+const EMPTY_FORM: FormState = { title: '', content: '', slug: '' };
+
+function slugify(value: string): string {
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+}
 
 export default function DocsApp() {
     const [docs, setDocs] = useState<DocSummary[]>([]);
@@ -25,22 +35,28 @@ export default function DocsApp() {
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [origin, setOrigin] = useState('');
 
     useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setOrigin(window.location.origin);
+        }
         void refreshList();
     }, []);
+
+    const slugPrefix = useMemo(() => {
+        const base = origin || (typeof window !== 'undefined' ? window.location.origin : '');
+        return base ? `${base}/docs/` : '/docs/';
+    }, [origin]);
 
     const shareUrl = useMemo(() => {
         if (!selectedDoc) {
             return null;
         }
-        if (typeof window === 'undefined') {
-            return null;
-        }
-        return `${window.location.origin}/docs/${selectedDoc.id}`;
-    }, [selectedDoc]);
+        return `${slugPrefix}${selectedDoc.slug}`;
+    }, [selectedDoc, slugPrefix]);
 
-    async function refreshList() {
+    async function refreshList(activeSlug?: string) {
         setLoading(true);
         setError(null);
         try {
@@ -50,13 +66,13 @@ export default function DocsApp() {
             }
             const data = (await response.json()) as DocSummary[];
             setDocs(data);
-            if (selectedDoc) {
-                // Ensure the selected document still exists and refresh its metadata.
-                const stillExists = data.find((item) => item.id === selectedDoc.id);
+            const targetSlug = activeSlug ?? selectedDoc?.slug;
+            if (targetSlug) {
+                const stillExists = data.find((item) => item.slug === targetSlug);
                 if (!stillExists) {
                     setSelectedDoc(null);
                     setForm(EMPTY_FORM);
-                } else {
+                } else if (selectedDoc) {
                     setSelectedDoc({ ...stillExists, content: selectedDoc.content });
                 }
             }
@@ -67,17 +83,17 @@ export default function DocsApp() {
         }
     }
 
-    async function loadDoc(id: string) {
+    async function loadDoc(slug: string) {
         setBusy(true);
         setError(null);
         try {
-            const response = await fetch(`/api/docs/${id}`);
+            const response = await fetch(`/api/docs/${slug}`);
             if (!response.ok) {
                 throw new Error('Failed to load document');
             }
             const doc = (await response.json()) as Doc;
             setSelectedDoc(doc);
-            setForm({ title: doc.title, content: doc.content });
+            setForm({ title: doc.title, content: doc.content, slug: doc.slug });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unexpected error while loading document.');
         } finally {
@@ -93,13 +109,34 @@ export default function DocsApp() {
 
     function handleChange(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
         const { name, value } = event.target;
-        setForm((prev: FormState) => ({ ...prev, [name]: value }));
+        if (name === 'title') {
+            const nextTitle = value;
+            setForm((prev: FormState) => {
+                const shouldUpdateSlug = !selectedDoc && (prev.slug === '' || prev.slug === slugify(prev.title));
+                const nextState: FormState = {
+                    ...prev,
+                    title: nextTitle,
+                };
+                if (shouldUpdateSlug) {
+                    nextState.slug = slugify(nextTitle);
+                }
+                return nextState;
+            });
+            return;
+        }
+
+        const normalizedValue = name === 'slug' ? slugify(value) : value;
+        setForm((prev: FormState) => ({ ...prev, [name]: normalizedValue }));
     }
 
     async function handleCreate(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         if (!form.title.trim()) {
             setError('Title is required.');
+            return;
+        }
+        if (form.slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(form.slug)) {
+            setError('Slug can only contain lowercase letters, numbers, and hyphens.');
             return;
         }
 
@@ -109,7 +146,7 @@ export default function DocsApp() {
             const response = await fetch('/api/docs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: form.title, content: form.content }),
+                body: JSON.stringify({ title: form.title, content: form.content, slug: form.slug }),
             });
             if (!response.ok) {
                 const payload = (await response.json()) as { message?: string };
@@ -117,8 +154,8 @@ export default function DocsApp() {
             }
             const doc = (await response.json()) as Doc;
             setSelectedDoc(doc);
-            setForm({ title: doc.title, content: doc.content });
-            await refreshList();
+            setForm({ title: doc.title, content: doc.content, slug: doc.slug });
+            await refreshList(doc.slug);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unexpected error while creating document.');
         } finally {
@@ -135,14 +172,22 @@ export default function DocsApp() {
             setError('Title is required.');
             return;
         }
+        if (!form.slug.trim()) {
+            setError('Slug is required.');
+            return;
+        }
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(form.slug)) {
+            setError('Slug can only contain lowercase letters, numbers, and hyphens.');
+            return;
+        }
 
         setBusy(true);
         setError(null);
         try {
-            const response = await fetch(`/api/docs/${selectedDoc.id}`, {
+            const response = await fetch(`/api/docs/${selectedDoc.slug}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: form.title, content: form.content }),
+                body: JSON.stringify({ title: form.title, content: form.content, slug: form.slug }),
             });
             if (!response.ok) {
                 const payload = (await response.json()) as { message?: string };
@@ -150,8 +195,8 @@ export default function DocsApp() {
             }
             const doc = (await response.json()) as Doc;
             setSelectedDoc(doc);
-            setForm({ title: doc.title, content: doc.content });
-            await refreshList();
+            setForm({ title: doc.title, content: doc.content, slug: doc.slug });
+            await refreshList(doc.slug);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unexpected error while saving document.');
         } finally {
@@ -171,7 +216,7 @@ export default function DocsApp() {
         setBusy(true);
         setError(null);
         try {
-            const response = await fetch(`/api/docs/${selectedDoc.id}`, {
+            const response = await fetch(`/api/docs/${selectedDoc.slug}`, {
                 method: 'DELETE',
             });
             if (!response.ok) {
@@ -210,12 +255,12 @@ export default function DocsApp() {
                     ) : (
                         <ul className="docs-app__list">
                             {docs.map((doc: DocSummary) => (
-                                <li key={doc.id}>
+                                <li key={doc.slug}>
                                     <button
                                         type="button"
-                                        className={doc.id === selectedDoc?.id ? 'is-active' : ''}
-                                        onClick={() => void loadDoc(doc.id)}
-                                        disabled={busy && doc.id === selectedDoc?.id}
+                                        className={doc.slug === selectedDoc?.slug ? 'is-active' : ''}
+                                        onClick={() => void loadDoc(doc.slug)}
+                                        disabled={busy && doc.slug === selectedDoc?.slug}
                                     >
                                         <strong>{doc.title}</strong>
                                         <small>Updated {new Date(doc.updatedAt).toLocaleString()}</small>
@@ -239,6 +284,23 @@ export default function DocsApp() {
                                 placeholder="My brilliant snippet"
                                 disabled={busy}
                             />
+                        </div>
+                        <div className="docs-app__field">
+                            <label htmlFor="slug">Share link</label>
+                            <div className="docs-app__slug">
+                                <span className="docs-app__slug-prefix">{slugPrefix}</span>
+                                <input
+                                    id="slug"
+                                    name="slug"
+                                    type="text"
+                                    value={form.slug}
+                                    onChange={handleChange}
+                                    required={!!selectedDoc}
+                                    placeholder="my-snippet"
+                                    disabled={busy}
+                                />
+                            </div>
+                            <small className="docs-app__hint">Lowercase letters, numbers, and hyphens only.</small>
                         </div>
                         <div className="docs-app__field">
                             <label htmlFor="content">Markdown</label>

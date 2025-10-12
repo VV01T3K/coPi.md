@@ -150,7 +150,48 @@
     color: var(--color-subtle);
 }
 
-.docs-app__field input,
+.docs-app__slug {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: hsla(220, 45%, 12%, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 0.65rem;
+    padding: 0.6rem 0.75rem;
+    flex-wrap: wrap;
+}
+
+.docs-app__slug input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--color-text);
+    padding: 0;
+    font-size: 1rem;
+}
+
+.docs-app__slug input:focus-visible {
+    outline: none;
+}
+
+.docs-app__slug-prefix {
+    font-size: 0.9rem;
+    color: var(--color-subtle);
+    user-select: none;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.docs-app__hint {
+    font-size: 0.8rem;
+    color: var(--color-subtle);
+    margin: 0;
+}
+
+.docs-app__field>input,
 .docs-app__field textarea {
     border: 1px solid rgba(148, 163, 184, 0.35);
     background: hsla(220, 45%, 12%, 0.9);
@@ -163,7 +204,7 @@
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.docs-app__field input:focus-visible,
+.docs-app__field>input:focus-visible,
 .docs-app__field textarea:focus-visible {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.35);

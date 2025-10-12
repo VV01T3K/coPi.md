@@ -1,5 +1,11 @@
 import type { APIRoute } from 'astro';
-import { deleteDoc, getDoc, updateDoc } from '../../../server/docService';
+import {
+    deleteDoc,
+    DocConflictError,
+    DocValidationError,
+    getDoc,
+    updateDoc,
+} from '../../../server/docService';
 
 export const GET: APIRoute = async ({ params }) => {
     try {
@@ -43,7 +49,7 @@ export const PUT: APIRoute = async ({ params, request }) => {
         }
 
         const payload = await request.json();
-        const updates: { title?: string; content?: string } = {};
+        const updates: { title?: string; content?: string; slug?: string } = {};
 
         if (typeof payload?.title === 'string') {
             const nextTitle = payload.title.trim();
@@ -60,6 +66,10 @@ export const PUT: APIRoute = async ({ params, request }) => {
             updates.content = payload.content;
         }
 
+        if (typeof payload?.slug === 'string') {
+            updates.slug = payload.slug;
+        }
+
         const doc = await updateDoc(id, updates);
         if (!doc) {
             return new Response(JSON.stringify({ message: 'Document not found.' }), {
@@ -73,6 +83,19 @@ export const PUT: APIRoute = async ({ params, request }) => {
             headers: { 'Content-Type': 'application/json' },
         });
     } catch (error) {
+        if (error instanceof DocValidationError) {
+            return new Response(JSON.stringify({ message: error.message }), {
+                status: 422,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        if (error instanceof DocConflictError) {
+            return new Response(JSON.stringify({ message: error.message }), {
+                status: 409,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
         console.error('[api/docs/:id] failed to update document', error);
         return new Response(JSON.stringify({ message: 'Could not update document.' }), {
             status: 500,

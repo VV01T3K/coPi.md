@@ -80,14 +80,15 @@ async function generateSlug(title: string): Promise<string> {
 
 export async function listDocs(): Promise<DocSummary[]> {
     const redis = getRedis();
-    const ids = await redis.zrevrange(DOC_INDEX_KEY, 0, -1);
+    // node-redis v4: use zRange with REV to replicate ZREVRANGE
+    const ids = await redis.zRange(DOC_INDEX_KEY, 0, -1, { REV: true });
 
     if (ids.length === 0) {
         return [];
     }
 
     const keys = ids.map((id) => docKey(id));
-    const rows = await redis.mget(keys);
+    const rows = await redis.mGet(keys);
 
     const docs: DocSummary[] = [];
     rows.forEach((row) => {
@@ -177,7 +178,7 @@ export async function createDoc({ title, content, slug }: CreateDocInput): Promi
     await redis
         .multi()
         .set(docKey(normalizedSlug), JSON.stringify(record))
-        .zadd(DOC_INDEX_KEY, Date.now(), normalizedSlug)
+        .zAdd(DOC_INDEX_KEY, [{ score: Date.now(), value: normalizedSlug }])
         .exec();
 
     return record;
@@ -220,13 +221,15 @@ export async function updateDoc(currentSlug: string, { title, content, slug }: U
     const pipeline = redis.multi();
 
     if (nextSlug === existing.slug) {
-        pipeline.set(docKey(nextSlug), JSON.stringify(next)).zadd(DOC_INDEX_KEY, Date.now(), nextSlug);
+        pipeline
+            .set(docKey(nextSlug), JSON.stringify(next))
+            .zAdd(DOC_INDEX_KEY, [{ score: Date.now(), value: nextSlug }]);
     } else {
         pipeline
             .set(docKey(nextSlug), JSON.stringify(next))
             .del(docKey(existing.slug))
-            .zrem(DOC_INDEX_KEY, existing.slug)
-            .zadd(DOC_INDEX_KEY, Date.now(), nextSlug);
+            .zRem(DOC_INDEX_KEY, existing.slug)
+            .zAdd(DOC_INDEX_KEY, [{ score: Date.now(), value: nextSlug }]);
     }
 
     await pipeline.exec();
@@ -236,20 +239,14 @@ export async function updateDoc(currentSlug: string, { title, content, slug }: U
 
 export async function deleteDoc(slug: string): Promise<boolean> {
     const redis = getRedis();
-    const results = await redis.multi().del(docKey(slug)).zrem(DOC_INDEX_KEY, slug).exec();
-    if (!results) {
-        return false;
-    }
+    const results = await redis
+        .multi()
+        .del(docKey(slug))
+        .zRem(DOC_INDEX_KEY, slug)
+        .exec();
 
-    const [delResult] = results;
-    if (!delResult) {
-        return false;
-    }
-
-    const [error, deletedCount] = delResult as [Error | null, number];
-    if (error) {
-        throw error;
-    }
-
-    return deletedCount > 0;
+    // In node-redis v4, exec resolves to an array of command results or throws on error.
+    // The first result corresponds to DEL and is a number indicating the number of keys removed.
+    const delCount = (results?.[0] as number) ?? 0;
+    return delCount > 0;
 }

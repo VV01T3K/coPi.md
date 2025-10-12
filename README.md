@@ -12,9 +12,9 @@ An [Astro](https://astro.build/) playground inspired by GitHub Gists. Create, ed
 
 ## Getting Started
 
-1. Install dependencies: `npm install`
+1. Install dependencies: `bun install`
 2. Start a Redis instance (see "Local Redis" below) and expose it via `REDIS_URL` (defaults to `redis://127.0.0.1:6379`).
-3. Run the dev server: `npm run dev`
+3. Run the dev server: `bun run dev`
 4. Open the listed URL in your browser to start creating notes.
 
 ```bash
@@ -28,14 +28,21 @@ redis-cli ping
 
 | Command | Action |
 | :-- | :-- |
-| `npm run dev` | Start the Astro dev server with SSR enabled. |
-| `npm run build` | Build the project for production (server output). |
-| `npm run preview` | Preview the production build locally. |
-| `npm run astro -- <cmd>` | Run arbitrary Astro CLI commands. |
+| `bun run dev` | Start the Astro dev server with SSR enabled. |
+| `bun run build` | Build the project for production (server output). |
+| `bun run preview` | Preview the production build locally. |
+| `bun x astro <cmd>` | Run arbitrary Astro CLI commands. |
 
 ## Environment
 
 `REDIS_URL` – connection string to your Redis deployment. If omitted, the app falls back to `redis://127.0.0.1:6379`.
+
+This project uses the official `redis` client for Node.js with Bun. Older versions used `ioredis`; if you're upgrading, ensure you run:
+
+```bash
+bun remove ioredis
+bun add redis@^4
+```
 
 ## Local Redis
 

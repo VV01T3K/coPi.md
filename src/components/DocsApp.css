@@ -92,28 +92,31 @@
 .docs-app__list button {
     width: 100%;
     text-align: left;
-    border: 1px solid transparent;
-    background: hsla(225, 42%, 19%, 0.85);
-    padding: 0.85rem;
-    border-radius: 0.7rem;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: radial-gradient(120% 120% at 0% 0%, hsla(225, 44%, 20%, 0.95), hsla(222, 40%, 14%, 0.9));
+    padding: 0.9rem 1rem;
+    border-radius: 0.8rem;
     cursor: pointer;
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    gap: 0.35rem;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, background 0.18s ease;
+    box-shadow: 0 10px 24px rgba(8, 15, 40, 0.35);
 }
 
 .docs-app__list button:hover,
 .docs-app__list button:focus-visible {
-    border-color: var(--color-primary);
-    box-shadow: 0 14px 34px rgba(99, 102, 241, 0.25);
-    transform: translateY(-1px);
+    border-color: rgba(129, 140, 248, 0.6);
+    box-shadow: 0 16px 36px rgba(99, 102, 241, 0.28);
+    transform: translateY(-2px);
     outline: none;
+    background: radial-gradient(120% 120% at 0% 0%, hsla(225, 50%, 24%, 0.98), hsla(222, 42%, 16%, 0.95));
 }
 
 .docs-app__list button.is-active {
-    border-color: var(--color-primary);
-    background: hsla(259, 95%, 68%, 0.18);
+    border-color: rgba(129, 140, 248, 0.85);
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.22), rgba(2, 6, 23, 0.2));
+    box-shadow: 0 18px 42px rgba(79, 70, 229, 0.28);
 }
 
 .docs-app__list strong {

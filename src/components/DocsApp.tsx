@@ -258,9 +258,20 @@ export default function DocsApp() {
                                 <li key={doc.slug}>
                                     <button
                                         type="button"
+                                        title={`Open ${doc.title}`}
                                         className={doc.slug === selectedDoc?.slug ? 'is-active' : ''}
-                                        onClick={() => void loadDoc(doc.slug)}
-                                        disabled={busy && doc.slug === selectedDoc?.slug}
+                                        onClick={() => {
+                                            // Avoid breaking double-click by disabling; guard instead
+                                            if (busy) return;
+                                            if (doc.slug === selectedDoc?.slug) return;
+                                            void loadDoc(doc.slug);
+                                        }}
+                                        onDoubleClick={() => {
+                                            const url = `/docs/${doc.slug}`;
+                                            if (typeof window !== 'undefined') {
+                                                window.location.assign(url);
+                                            }
+                                        }}
                                     >
                                         <strong>{doc.title}</strong>
                                         <small>Updated {new Date(doc.updatedAt).toLocaleString()}</small>

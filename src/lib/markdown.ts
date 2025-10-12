@@ -8,12 +8,12 @@ import rehypeStringify from 'rehype-stringify';
  * Converts markdown content to sanitized HTML for safe rendering.
  */
 export async function markdownToHtml(markdown: string): Promise<string> {
-	const file = await remark()
-		.use(remarkParse)
-		.use(remarkRehype)
-		.use(rehypeSanitize)
-		.use(rehypeStringify)
-		.process(markdown);
+    const file = await remark()
+        .use(remarkParse)
+        .use(remarkRehype)
+        .use(rehypeSanitize)
+        .use(rehypeStringify)
+        .process(markdown);
 
-	return String(file);
+    return String(file);
 }

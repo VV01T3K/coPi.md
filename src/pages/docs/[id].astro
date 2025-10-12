@@ -37,6 +37,7 @@ const rendered = await markdownToHtml(doc.content);
 		margin: 0 auto;
 		padding: 3rem 1.5rem 5rem;
 		box-sizing: border-box;
+		color: var(--color-text);
 	}
 
 	.doc-page__header h1 {
@@ -45,7 +46,7 @@ const rendered = await markdownToHtml(doc.content);
 
 	.doc-page__header p {
 		margin: 0;
-		color: #555;
+		color: var(--color-subtle);
 		font-size: 0.95rem;
 	}
 
@@ -54,14 +55,20 @@ const rendered = await markdownToHtml(doc.content);
 		line-height: 1.7;
 		display: grid;
 		gap: 1.25rem;
+		background: linear-gradient(145deg, hsla(222, 44%, 14%, 0.6), hsla(223, 36%, 18%, 0.45));
+		padding: 2.5rem;
+		border-radius: 1.25rem;
+		border: 1px solid var(--color-border);
+		box-shadow: var(--shadow-elevated);
 	}
 
 	.doc-page__content pre {
-		background: #0f172a;
-		color: #f8fafc;
+		background: hsla(222, 47%, 11%, 0.85);
+		color: var(--color-text);
 		padding: 1rem;
 		overflow-x: auto;
-		border-radius: 0.75rem;
+		border-radius: 0.85rem;
+		border: 1px solid rgba(148, 163, 184, 0.25);
 	}
 
 	.doc-page__content code {
@@ -75,13 +82,13 @@ const rendered = await markdownToHtml(doc.content);
 	}
 
 	.doc-page__content a {
-		color: #4f39fa;
+		color: var(--color-primary);
 	}
 
 	.doc-page__content blockquote {
-		border-left: 4px solid #4f39fa;
+		border-left: 4px solid var(--color-primary);
 		padding-left: 1rem;
-		color: #475569;
+		color: var(--color-subtle);
 		margin: 0;
 	}
 </style>

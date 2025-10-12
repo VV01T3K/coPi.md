@@ -1,0 +1,87 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getDoc } from '../../server/docService';
+import { markdownToHtml } from '../../lib/markdown';
+
+const { id } = Astro.params;
+
+if (!id) {
+	throw new Error('Document id is required.');
+}
+
+const doc = await getDoc(id);
+
+if (!doc) {
+	return new Response('Document not found.', { status: 404 });
+}
+
+const rendered = await markdownToHtml(doc.content);
+---
+
+<Layout title={`${doc.title} • copicat`}>
+	<main class="doc-page">
+		<header class="doc-page__header">
+			<h1>{doc.title}</h1>
+			<p>
+				Created <time datetime={doc.createdAt}>{new Date(doc.createdAt).toLocaleString()}</time>
+				· Updated <time datetime={doc.updatedAt}>{new Date(doc.updatedAt).toLocaleString()}</time>
+			</p>
+		</header>
+		<article class="doc-page__content" set:html={rendered} />
+	</main>
+</Layout>
+
+<style>
+	.doc-page {
+		max-width: 70ch;
+		margin: 0 auto;
+		padding: 3rem 1.5rem 5rem;
+		box-sizing: border-box;
+	}
+
+	.doc-page__header h1 {
+		margin-bottom: 0.5rem;
+	}
+
+	.doc-page__header p {
+		margin: 0;
+		color: #555;
+		font-size: 0.95rem;
+	}
+
+	.doc-page__content {
+		margin-top: 2rem;
+		line-height: 1.7;
+		display: grid;
+		gap: 1.25rem;
+	}
+
+	.doc-page__content pre {
+		background: #0f172a;
+		color: #f8fafc;
+		padding: 1rem;
+		overflow-x: auto;
+		border-radius: 0.75rem;
+	}
+
+	.doc-page__content code {
+		font-family: Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+	}
+
+	.doc-page__content h2,
+	.doc-page__content h3,
+	.doc-page__content h4 {
+		margin-top: 1.75rem;
+	}
+
+	.doc-page__content a {
+		color: #4f39fa;
+	}
+
+	.doc-page__content blockquote {
+		border-left: 4px solid #4f39fa;
+		padding-left: 1rem;
+		color: #475569;
+		margin: 0;
+	}
+</style>

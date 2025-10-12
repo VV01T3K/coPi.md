@@ -1,40 +1,30 @@
-# Astro
+# copicat markdown
 
-This directory is a brief example of an [Astro](https://astro.build/) site that can be deployed to Vercel with zero configuration. This demo showcases:
+An [Astro](https://astro.build/) playground inspired by GitHub Gists. Create, edit, delete, and share Markdown snippets with persistence backed by Redis.
 
-- `/` - A static page (pre-rendered)
-- `/ssr` - A page that uses server-side rendering (through [Vercel Functions](https://vercel.com/docs/functions))
-- `/ssr-with-swr-caching` - Similar to the previous page, but also caches the response on the [Vercel Edge Network](https://vercel.com/docs/edge-network/overview) using `cache-control` headers
-- `/image` - Astro [Asset](https://docs.astro.build/en/guides/images/) using Vercel [Image Optimization](https://vercel.com/docs/image-optimization)
+## Features
 
-Learn more about [Astro on Vercel](https://vercel.com/docs/frameworks/astro).
+- Markdown workspace with a React-powered editor and live document list.
+- REST-style JSON API under `/api/docs` for create, read, update, and delete operations.
+- Redis storage using simple JSON payloads and sorted sets for ordering by last update.
+- Shareable public pages at `/docs/:id` that render sanitized Markdown on the server.
 
-## Deploy Your Own
+## Getting Started
 
-Deploy your own Astro project with Vercel.
+1. Install dependencies: `npm install`
+2. Make sure a Redis instance is available and expose it via `REDIS_URL` (defaults to `redis://127.0.0.1:6379`).
+3. Run the dev server: `npm run dev`
+4. Open the listed URL in your browser to start creating notes.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/examples/tree/main/framework-boilerplates/astro&template=astro)
+## Available Scripts
 
-_Live Example: https://astro-template.vercel.app_
+| Command | Action |
+| :-- | :-- |
+| `npm run dev` | Start the Astro dev server with SSR enabled. |
+| `npm run build` | Build the project for production (server output). |
+| `npm run preview` | Preview the production build locally. |
+| `npm run astro -- <cmd>` | Run arbitrary Astro CLI commands. |
 
-## Project Structure
+## Environment
 
-Astro looks for `.astro`, `.md`, or `.js` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
-
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components or layouts.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                | Action                                             |
-| :--------------------- | :------------------------------------------------- |
-| `pnpm install`          | Installs dependencies                              |
-| `pnpm run dev`          | Starts local dev server at `localhost:3000`        |
-| `pnpm run build`        | Build your production site to `./dist/`            |
-| `pnpm run preview`      | Preview your build locally, before deploying       |
-| `pnpm run start`       | Starts a production dev server at  `localhost:3000`     |
-| `pnpm run astro ...`    | Run CLI commands like `astro add`, `astro preview` |
-| `pnpm run astro --help` | Get help using the Astro CLI                       |
+`REDIS_URL` – connection string to your Redis deployment. If omitted, the app falls back to `redis://127.0.0.1:6379`.

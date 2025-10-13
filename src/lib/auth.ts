@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 
-export const AUTH_PASSWORD = 'qwerty';
+export const AUTH_PASSWORD = process.env.PASSWORD ?? "bikomiś2137";
 export const SESSION_COOKIE = 'copicat_session';
 export const SESSION_TIMEOUT_MS = 10 * 60 * 1000;
 export const SESSION_TIMEOUT_SECONDS = SESSION_TIMEOUT_MS / 1000;

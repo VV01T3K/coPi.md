@@ -49,7 +49,7 @@ export const PUT: APIRoute = async ({ params, request }) => {
         }
 
         const payload = await request.json();
-    const updates: { title?: string; content?: string; slug?: string; expiresInSeconds?: number } = {};
+        const updates: { title?: string; content?: string; slug?: string; expiresInSeconds?: number } = {};
 
         if (typeof payload?.title === 'string') {
             const nextTitle = payload.title.trim();

@@ -19,17 +19,17 @@ export const GET: APIRoute = async () => {
 
 export const POST: APIRoute = async ({ request }) => {
     try {
-    const payload = await request.json();
-    const title = typeof payload?.title === 'string' ? payload.title.trim() : '';
-    const content = typeof payload?.content === 'string' ? payload.content : '';
-    const slug = typeof payload?.slug === 'string' ? payload.slug : undefined;
-    const expiresInSecondsRaw = payload?.expiresInSeconds;
-    const expiresInSeconds =
-        typeof expiresInSecondsRaw === 'number'
-        ? expiresInSecondsRaw
-        : typeof expiresInSecondsRaw === 'string'
-          ? Number(expiresInSecondsRaw)
-          : undefined;
+        const payload = await request.json();
+        const title = typeof payload?.title === 'string' ? payload.title.trim() : '';
+        const content = typeof payload?.content === 'string' ? payload.content : '';
+        const slug = typeof payload?.slug === 'string' ? payload.slug : undefined;
+        const expiresInSecondsRaw = payload?.expiresInSeconds;
+        const expiresInSeconds =
+            typeof expiresInSecondsRaw === 'number'
+                ? expiresInSecondsRaw
+                : typeof expiresInSecondsRaw === 'string'
+                    ? Number(expiresInSecondsRaw)
+                    : undefined;
 
         if (!title) {
             return new Response(
@@ -38,7 +38,7 @@ export const POST: APIRoute = async ({ request }) => {
             );
         }
 
-    const doc = await createDoc({ title, content, slug, expiresInSeconds });
+        const doc = await createDoc({ title, content, slug, expiresInSeconds });
         return new Response(JSON.stringify(doc), {
             status: 201,
             headers: { 'Content-Type': 'application/json' },

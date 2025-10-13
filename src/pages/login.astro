@@ -11,7 +11,7 @@ const loginError = Astro.url.searchParams.has("error");
     <section class="login-container">
         <h1 class="login-heading">Enter Password</h1>
         <p class="login-subtext">
-            Access to copicat requires the shared password.
+            Access to coPi.md requires the shared password.
         </p>
         <form method="post" action="/api/auth/login" class="login-form">
             <input type="hidden" name="redirectTo" value={redirectTo} />

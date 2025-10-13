@@ -1,4 +1,4 @@
-# copicat markdown
+# coPi.md
 
 An [Astro](https://astro.build/) playground inspired by GitHub Gists. Create, edit, delete, and share Markdown snippets with persistence backed by Redis.
 

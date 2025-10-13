@@ -337,7 +337,7 @@ export default function DocsApp() {
     return (
         <div className="docs-app">
             <header className="docs-app__header">
-                <h1>copicat markdown</h1>
+                <h1>co<span className="PI_HIGHLIGHT">Pi</span>.md</h1>
                 <p>Capture, edit, and share Markdown snippets backed by Redis.</p>
             </header>
             <main className="docs-app__layout">

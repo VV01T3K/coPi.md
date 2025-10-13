@@ -290,3 +290,42 @@
         order: 1;
     }
 }
+
+
+.PI_HIGHLIGHT {
+    position: relative;
+    display: inline;
+    border-radius: 999px;
+    color: rgb(205, 35, 85);
+    font-weight: 700;
+    /* letter-spacing: 0.02em; */
+    text-shadow: 0 0 14px rgba(196, 181, 253, 0.65), 0 0 36px rgba(79, 70, 229, 0.55);
+    animation: piHighlightGlow 2.8s ease-in-out infinite alternate;
+}
+
+/* Halo glow stays inline without shifting surrounding text */
+.PI_HIGHLIGHT::before {
+    content: "";
+    position: absolute;
+    inset: -0.3em -0.45em;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.4) 0%, rgba(79, 70, 229, 0) 75%);
+    z-index: -1;
+    filter: blur(10px);
+    opacity: 0.85;
+    transition: opacity 0.3s ease;
+}
+
+.PI_HIGHLIGHT:hover::before {
+    opacity: 1;
+}
+
+@keyframes piHighlightGlow {
+    from {
+        text-shadow: 0 0 10px rgba(196, 181, 253, 0.45), 0 0 24px rgba(79, 70, 229, 0.35);
+    }
+
+    to {
+        text-shadow: 0 0 16px rgba(196, 181, 253, 0.75), 0 0 42px rgba(79, 70, 229, 0.6);
+    }
+}

@@ -1,12 +1,14 @@
 import type { ChangeEvent, FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import './DocsApp.css';
+import { DEFAULT_DOC_TTL_SECONDS, MAX_DOC_TTL_SECONDS, MIN_DOC_TTL_SECONDS } from '../lib/docExpiration';
 
 type DocSummary = {
     slug: string;
     title: string;
     createdAt: string;
     updatedAt: string;
+    expiresAt: string | null;
 };
 
 type Doc = DocSummary & { content: string };
@@ -15,9 +17,49 @@ type FormState = {
     title: string;
     content: string;
     slug: string;
+    expirationDays: string;
 };
 
-const EMPTY_FORM: FormState = { title: '', content: '', slug: '' };
+const SECONDS_PER_DAY = 24 * 60 * 60;
+const MS_PER_DAY = SECONDS_PER_DAY * 1000;
+const MIN_EXPIRATION_DAYS = MIN_DOC_TTL_SECONDS / SECONDS_PER_DAY;
+const MAX_EXPIRATION_DAYS = MAX_DOC_TTL_SECONDS / SECONDS_PER_DAY;
+const DEFAULT_EXPIRATION_DAYS = DEFAULT_DOC_TTL_SECONDS / SECONDS_PER_DAY;
+
+const EMPTY_FORM: FormState = {
+    title: '',
+    content: '',
+    slug: '',
+    expirationDays: DEFAULT_EXPIRATION_DAYS.toString(),
+};
+
+function deriveExpirationDays(expiresAt: string | null): string {
+    if (!expiresAt) {
+        return DEFAULT_EXPIRATION_DAYS.toString();
+    }
+
+    const expiresTime = new Date(expiresAt).getTime();
+    const now = Date.now();
+    const diffMs = expiresTime - now;
+    if (!Number.isFinite(diffMs) || diffMs <= 0) {
+        return DEFAULT_EXPIRATION_DAYS.toString();
+    }
+
+    const diffDays = diffMs / MS_PER_DAY;
+    const clamped = Math.min(MAX_EXPIRATION_DAYS, Math.max(MIN_EXPIRATION_DAYS, Math.ceil(diffDays)));
+    return clamped.toString();
+}
+
+function formatExpirationLabel(expiresAt: string | null): string | null {
+    if (!expiresAt) {
+        return null;
+    }
+    const date = new Date(expiresAt);
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+    return `Expires ${date.toLocaleString()}`;
+}
 
 function slugify(value: string): string {
     return value
@@ -56,6 +98,11 @@ export default function DocsApp() {
         return `${slugPrefix}${selectedDoc.slug}`;
     }, [selectedDoc, slugPrefix]);
 
+    const expirationLabel = useMemo(
+        () => formatExpirationLabel(selectedDoc ? selectedDoc.expiresAt : null),
+        [selectedDoc?.expiresAt],
+    );
+
     async function refreshList(activeSlug?: string) {
         setLoading(true);
         setError(null);
@@ -93,7 +140,12 @@ export default function DocsApp() {
             }
             const doc = (await response.json()) as Doc;
             setSelectedDoc(doc);
-            setForm({ title: doc.title, content: doc.content, slug: doc.slug });
+            setForm({
+                title: doc.title,
+                content: doc.content,
+                slug: doc.slug,
+                expirationDays: deriveExpirationDays(doc.expiresAt),
+            });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unexpected error while loading document.');
         } finally {
@@ -109,6 +161,10 @@ export default function DocsApp() {
 
     function handleChange(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
         const { name, value } = event.target;
+        if (name === 'expirationDays') {
+            setForm((prev: FormState) => ({ ...prev, expirationDays: value }));
+            return;
+        }
         if (name === 'title') {
             const nextTitle = value;
             setForm((prev: FormState) => {
@@ -140,13 +196,30 @@ export default function DocsApp() {
             return;
         }
 
+        const expirationDaysValue = Number(form.expirationDays);
+        if (
+            Number.isNaN(expirationDaysValue) ||
+            expirationDaysValue < MIN_EXPIRATION_DAYS ||
+            expirationDaysValue > MAX_EXPIRATION_DAYS
+        ) {
+            setError(`Expiration must be between ${MIN_EXPIRATION_DAYS} and ${MAX_EXPIRATION_DAYS} days.`);
+            return;
+        }
+
+        const expiresInSeconds = Math.round(expirationDaysValue) * SECONDS_PER_DAY;
+
         setBusy(true);
         setError(null);
         try {
             const response = await fetch('/api/docs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: form.title, content: form.content, slug: form.slug }),
+                body: JSON.stringify({
+                    title: form.title,
+                    content: form.content,
+                    slug: form.slug,
+                    expiresInSeconds,
+                }),
             });
             if (!response.ok) {
                 const payload = (await response.json()) as { message?: string };
@@ -154,7 +227,12 @@ export default function DocsApp() {
             }
             const doc = (await response.json()) as Doc;
             setSelectedDoc(doc);
-            setForm({ title: doc.title, content: doc.content, slug: doc.slug });
+            setForm({
+                title: doc.title,
+                content: doc.content,
+                slug: doc.slug,
+                expirationDays: deriveExpirationDays(doc.expiresAt),
+            });
             await refreshList(doc.slug);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unexpected error while creating document.');
@@ -181,13 +259,30 @@ export default function DocsApp() {
             return;
         }
 
+        const expirationDaysValue = Number(form.expirationDays);
+        if (
+            Number.isNaN(expirationDaysValue) ||
+            expirationDaysValue < MIN_EXPIRATION_DAYS ||
+            expirationDaysValue > MAX_EXPIRATION_DAYS
+        ) {
+            setError(`Expiration must be between ${MIN_EXPIRATION_DAYS} and ${MAX_EXPIRATION_DAYS} days.`);
+            return;
+        }
+
+        const expiresInSeconds = Math.round(expirationDaysValue) * SECONDS_PER_DAY;
+
         setBusy(true);
         setError(null);
         try {
             const response = await fetch(`/api/docs/${selectedDoc.slug}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: form.title, content: form.content, slug: form.slug }),
+                body: JSON.stringify({
+                    title: form.title,
+                    content: form.content,
+                    slug: form.slug,
+                    expiresInSeconds,
+                }),
             });
             if (!response.ok) {
                 const payload = (await response.json()) as { message?: string };
@@ -195,7 +290,12 @@ export default function DocsApp() {
             }
             const doc = (await response.json()) as Doc;
             setSelectedDoc(doc);
-            setForm({ title: doc.title, content: doc.content, slug: doc.slug });
+            setForm({
+                title: doc.title,
+                content: doc.content,
+                slug: doc.slug,
+                expirationDays: deriveExpirationDays(doc.expiresAt),
+            });
             await refreshList(doc.slug);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unexpected error while saving document.');
@@ -312,6 +412,27 @@ export default function DocsApp() {
                                 />
                             </div>
                             <small className="docs-app__hint">Lowercase letters, numbers, and hyphens only.</small>
+                        </div>
+                        <div className="docs-app__field">
+                            <label htmlFor="expirationDays">Expires after (days)</label>
+                            <input
+                                id="expirationDays"
+                                name="expirationDays"
+                                type="number"
+                                min={MIN_EXPIRATION_DAYS}
+                                max={MAX_EXPIRATION_DAYS}
+                                step={1}
+                                value={form.expirationDays}
+                                onChange={handleChange}
+                                disabled={busy}
+                            />
+                            <small className="docs-app__hint">
+                                Between {MIN_EXPIRATION_DAYS} and {MAX_EXPIRATION_DAYS} days (default {DEFAULT_EXPIRATION_DAYS}{' '}
+                                {DEFAULT_EXPIRATION_DAYS === 1 ? 'day' : 'days'}).
+                            </small>
+                            {expirationLabel ? (
+                                <small className="docs-app__hint docs-app__hint--meta">{expirationLabel}</small>
+                            ) : null}
                         </div>
                         <div className="docs-app__field">
                             <label htmlFor="content">Markdown</label>

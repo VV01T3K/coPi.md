@@ -1,3 +1,4 @@
+import { DEFAULT_DOC_TTL_SECONDS, MAX_DOC_TTL_SECONDS, MIN_DOC_TTL_SECONDS } from '../lib/docExpiration';
 import { getRedis } from '../lib/redis';
 
 export interface DocRecord {
@@ -7,6 +8,7 @@ export interface DocRecord {
     content: string;
     createdAt: string;
     updatedAt: string;
+    expiresAt: string | null;
 }
 
 export type DocSummary = Omit<DocRecord, 'content'>;
@@ -31,6 +33,23 @@ export class DocConflictError extends Error {
 
 const DOC_PREFIX = 'doc:';
 const DOC_INDEX_KEY = 'docs:index';
+
+function normalizeTtlSeconds(ttl?: number): number {
+    if (ttl === undefined || ttl === null) {
+        return DEFAULT_DOC_TTL_SECONDS;
+    }
+
+    if (Number.isNaN(ttl) || !Number.isFinite(ttl)) {
+        throw new DocValidationError('Expiration must be a valid number of seconds.');
+    }
+
+    const rounded = Math.floor(ttl);
+    if (rounded < MIN_DOC_TTL_SECONDS || rounded > MAX_DOC_TTL_SECONDS) {
+        throw new DocValidationError('Expiration must be between 1 day and 30 days.');
+    }
+
+    return rounded;
+}
 
 function docKey(slug: string): string {
     return `${DOC_PREFIX}${slug}`;
@@ -91,28 +110,49 @@ export async function listDocs(): Promise<DocSummary[]> {
     const rows = await redis.mGet(keys);
 
     const docs: DocSummary[] = [];
-    rows.forEach((row) => {
+    const staleSlugs: string[] = [];
+
+    for (let index = 0; index < rows.length; index += 1) {
+        const row = rows[index];
+        const slug = ids[index];
+
         if (!row) {
-            return;
+            staleSlugs.push(slug);
+            continue;
         }
+
         try {
             const parsed = JSON.parse(row) as Partial<DocRecord>;
-            const slug = parsed.slug ?? parsed.id;
-            if (!slug || !parsed.title || !parsed.createdAt || !parsed.updatedAt) {
-                return;
+            const parsedSlug = parsed.slug ?? parsed.id ?? slug;
+            if (!parsedSlug || !parsed.title || !parsed.createdAt || !parsed.updatedAt) {
+                continue;
             }
+
+            let expiresAt: string | null = parsed.expiresAt ?? null;
+            if (!expiresAt) {
+                const ttl = await redis.ttl(keys[index]);
+                if (ttl > 0) {
+                    expiresAt = new Date(Date.now() + ttl * 1000).toISOString();
+                }
+            }
+
             // Only return metadata to keep payloads small.
             docs.push({
-                id: slug,
-                slug,
+                id: parsedSlug,
+                slug: parsedSlug,
                 title: parsed.title,
                 createdAt: parsed.createdAt,
                 updatedAt: parsed.updatedAt,
+                expiresAt: expiresAt ?? null,
             });
         } catch (error) {
             console.error('[docs] failed to parse stored document', error);
         }
-    });
+    }
+
+    if (staleSlugs.length > 0) {
+        await redis.zRem(DOC_INDEX_KEY, staleSlugs);
+    }
 
     return docs;
 }
@@ -131,6 +171,14 @@ export async function getDoc(slug: string): Promise<DocRecord | null> {
             return null;
         }
 
+        let expiresAt: string | null = parsed.expiresAt ?? null;
+        if (!expiresAt) {
+            const ttl = await redis.ttl(docKey(slug));
+            if (ttl > 0) {
+                expiresAt = new Date(Date.now() + ttl * 1000).toISOString();
+            }
+        }
+
         return {
             id: normalizedSlug,
             slug: normalizedSlug,
@@ -138,6 +186,7 @@ export async function getDoc(slug: string): Promise<DocRecord | null> {
             content: parsed.content,
             createdAt: parsed.createdAt,
             updatedAt: parsed.updatedAt,
+            expiresAt: expiresAt ?? null,
         };
     } catch (error) {
         console.error('[docs] failed to parse document', error);
@@ -149,9 +198,10 @@ export interface CreateDocInput {
     title: string;
     content: string;
     slug?: string;
+    expiresInSeconds?: number;
 }
 
-export async function createDoc({ title, content, slug }: CreateDocInput): Promise<DocRecord> {
+export async function createDoc({ title, content, slug, expiresInSeconds }: CreateDocInput): Promise<DocRecord> {
     const redis = getRedis();
     let normalizedSlug = '';
 
@@ -165,19 +215,23 @@ export async function createDoc({ title, content, slug }: CreateDocInput): Promi
         normalizedSlug = await generateSlug(title);
     }
 
-    const now = new Date().toISOString();
+    const ttlSeconds = normalizeTtlSeconds(expiresInSeconds);
+    const now = new Date();
+    const createdAt = now.toISOString();
+    const expiresAt = new Date(now.getTime() + ttlSeconds * 1000).toISOString();
     const record: DocRecord = {
         id: normalizedSlug,
         slug: normalizedSlug,
         title,
         content,
-        createdAt: now,
-        updatedAt: now,
+        createdAt,
+        updatedAt: createdAt,
+        expiresAt,
     };
 
     await redis
         .multi()
-        .set(docKey(normalizedSlug), JSON.stringify(record))
+        .set(docKey(normalizedSlug), JSON.stringify(record), { EX: ttlSeconds })
         .zAdd(DOC_INDEX_KEY, [{ score: Date.now(), value: normalizedSlug }])
         .exec();
 
@@ -188,9 +242,13 @@ export interface UpdateDocInput {
     title?: string;
     content?: string;
     slug?: string;
+    expiresInSeconds?: number;
 }
 
-export async function updateDoc(currentSlug: string, { title, content, slug }: UpdateDocInput): Promise<DocRecord | null> {
+export async function updateDoc(
+    currentSlug: string,
+    { title, content, slug, expiresInSeconds }: UpdateDocInput,
+): Promise<DocRecord | null> {
     const redis = getRedis();
     const existing = await getDoc(currentSlug);
     if (!existing) {
@@ -215,18 +273,31 @@ export async function updateDoc(currentSlug: string, { title, content, slug }: U
         slug: nextSlug,
         title: title !== undefined ? title : existing.title,
         content: content !== undefined ? content : existing.content,
-        updatedAt: new Date().toISOString(),
+        expiresAt: existing.expiresAt,
+        updatedAt: existing.updatedAt,
     };
+
+    let ttlSeconds: number;
+    if (expiresInSeconds !== undefined) {
+        ttlSeconds = normalizeTtlSeconds(expiresInSeconds);
+    } else {
+        const currentTtl = await redis.ttl(docKey(existing.slug));
+        ttlSeconds = currentTtl > 0 ? currentTtl : DEFAULT_DOC_TTL_SECONDS;
+    }
+
+    const now = new Date();
+    next.updatedAt = now.toISOString();
+    next.expiresAt = new Date(now.getTime() + ttlSeconds * 1000).toISOString();
 
     const pipeline = redis.multi();
 
     if (nextSlug === existing.slug) {
         pipeline
-            .set(docKey(nextSlug), JSON.stringify(next))
+            .set(docKey(nextSlug), JSON.stringify(next), { EX: ttlSeconds })
             .zAdd(DOC_INDEX_KEY, [{ score: Date.now(), value: nextSlug }]);
     } else {
         pipeline
-            .set(docKey(nextSlug), JSON.stringify(next))
+            .set(docKey(nextSlug), JSON.stringify(next), { EX: ttlSeconds })
             .del(docKey(existing.slug))
             .zRem(DOC_INDEX_KEY, existing.slug)
             .zAdd(DOC_INDEX_KEY, [{ score: Date.now(), value: nextSlug }]);

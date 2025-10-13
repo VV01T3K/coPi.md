@@ -49,7 +49,7 @@ export const PUT: APIRoute = async ({ params, request }) => {
         }
 
         const payload = await request.json();
-        const updates: { title?: string; content?: string; slug?: string } = {};
+    const updates: { title?: string; content?: string; slug?: string; expiresInSeconds?: number } = {};
 
         if (typeof payload?.title === 'string') {
             const nextTitle = payload.title.trim();
@@ -68,6 +68,15 @@ export const PUT: APIRoute = async ({ params, request }) => {
 
         if (typeof payload?.slug === 'string') {
             updates.slug = payload.slug;
+        }
+
+        if (payload?.expiresInSeconds !== undefined) {
+            const raw = payload.expiresInSeconds;
+            if (typeof raw === 'number') {
+                updates.expiresInSeconds = raw;
+            } else if (typeof raw === 'string') {
+                updates.expiresInSeconds = Number(raw);
+            }
         }
 
         const doc = await updateDoc(id, updates);

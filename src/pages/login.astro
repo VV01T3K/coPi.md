@@ -1,0 +1,108 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+const rawRedirect = Astro.url.searchParams.get("redirectTo");
+const redirectTo =
+    rawRedirect && rawRedirect.startsWith("/") ? rawRedirect : "/";
+const loginError = Astro.url.searchParams.has("error");
+---
+
+<Layout title="Log in" showLogout={false}>
+    <section class="login-container">
+        <h1 class="login-heading">Enter Password</h1>
+        <p class="login-subtext">
+            Access to copicat requires the shared password.
+        </p>
+        <form method="post" action="/api/auth/login" class="login-form">
+            <input type="hidden" name="redirectTo" value={redirectTo} />
+            <label class="field">
+                <span class="field-label">Password</span>
+                <input
+                    type="password"
+                    name="password"
+                    autocomplete="current-password"
+                    autofocus
+                    required
+                    class="field-input"
+                    placeholder="••••••••"
+                />
+            </label>
+            {loginError && <p class="error">Wrong password. Try again.</p>}
+            <button type="submit" class="submit-button">Log in</button>
+        </form>
+    </section>
+</Layout>
+
+<style>
+    .login-container {
+        max-width: 24rem;
+        margin: 8rem auto;
+        padding: 2.5rem;
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid hsla(215, 32%, 35%, 0.45);
+        border-radius: 1rem;
+        box-shadow: 0 18px 60px rgba(15, 23, 42, 0.45);
+        backdrop-filter: blur(12px);
+        text-align: center;
+    }
+
+    .login-heading {
+        margin: 0 0 0.5rem;
+        font-size: clamp(1.5rem, 3vw, 2.5rem);
+    }
+
+    .login-subtext {
+        margin: 0 0 1.5rem;
+    }
+
+    .login-form {
+        display: grid;
+        gap: 1.5rem;
+        text-align: left;
+    }
+
+    .field {
+        display: grid;
+        gap: 0.4rem;
+    }
+
+    .field-label {
+        font-size: 0.95rem;
+        color: hsl(217, 24%, 72%);
+    }
+
+    .field-input {
+        padding: 0.75rem 1rem;
+        border-radius: 0.75rem;
+        border: 1px solid hsla(215, 32%, 35%, 0.55);
+        background: rgba(15, 23, 42, 0.9);
+        color: hsl(210, 40%, 95%);
+    }
+
+    .field-input:focus-visible {
+        outline: 2px solid hsl(259, 95%, 68%);
+        outline-offset: 2px;
+    }
+
+    .submit-button {
+        padding: 0.75rem 1rem;
+        border-radius: 999px;
+        border: none;
+        background: hsl(259, 95%, 68%);
+        color: hsl(222, 47%, 11%);
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+
+    .submit-button:hover,
+    .submit-button:focus-visible {
+        background: hsl(259, 95%, 72%);
+    }
+
+    .error {
+        margin: -0.5rem 0 0;
+        color: hsl(0, 87%, 76%);
+        font-size: 0.95rem;
+    }
+</style>

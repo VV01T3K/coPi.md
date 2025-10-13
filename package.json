@@ -6,7 +6,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "redis:check": "bun run scripts/redis-check.ts"
+    "redis:start": "redis-server --save \"\" --appendonly no --daemonize yes && redis-cli ping"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",

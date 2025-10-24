@@ -191,6 +191,10 @@ export default function DocsApp() {
             setError('Title is required.');
             return;
         }
+        if (!form.content.trim()) {
+            setError('Content cannot be empty.');
+            return;
+        }
         if (form.slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(form.slug)) {
             setError('Slug can only contain lowercase letters, numbers, and hyphens.');
             return;

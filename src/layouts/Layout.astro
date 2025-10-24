@@ -1,4 +1,6 @@
 ---
+import SpeedInsights from "@vercel/speed-insights/astro";
+
 export interface Props {
 	title: string;
 	showLogout?: boolean;
@@ -18,6 +20,8 @@ import "highlight.js/styles/github-dark.css";
 		<link rel="icon" type="image/x-icon" href="/favicon.png" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
+		{/* @ts-ignore */}
+		<SpeedInsights />
 	</head>
 	<body>
 		<slot />

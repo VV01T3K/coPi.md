@@ -38,6 +38,13 @@ export const POST: APIRoute = async ({ request }) => {
             );
         }
 
+        if (!content.trim()) {
+            return new Response(
+                JSON.stringify({ message: 'Content cannot be empty.' }),
+                { status: 422, headers: { 'Content-Type': 'application/json' } },
+            );
+        }
+
         const doc = await createDoc({ title, content, slug, expiresInSeconds });
         return new Response(JSON.stringify(doc), {
             status: 201,
